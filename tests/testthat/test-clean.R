@@ -74,7 +74,8 @@ test_that("clean_make works", {
   expect_true(is.na(clean_make("-1", extract_make = FALSE)))
   expect_true(is.na(clean_make("Make")))
   expect_true(is.na(clean_make("Other")))
-  expect_true(is.na(clean_make("Generic")))
+  # Generic is now a valid make per issue #296
+  expect_equal(clean_make("Generic"), "Generic")
   expect_true(is.na(clean_make("All")))
   expect_true(is.na(clean_make("Int.")))
   

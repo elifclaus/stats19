@@ -77,8 +77,8 @@ clean_make = function(make, extract_make = TRUE) {
     stringr::str_detect(make, "Geely") ~ "Geely",
     # *oda is Skoda
     stringr::str_detect(make, "oda|Oda") ~ "Skoda",
-    # Keep Opel separate from Vauxhall (per discussion on #296)
-    # stringr::str_detect(make, "Opel") ~ "Vauxhall",
+    # Standardize/Collapse Vauxhall and Opel makes (per issue #296)
+    stringr::str_detect(make, "Opel") ~ "Vauxhall",
     
     # DAF
     make == "Daf" ~ "DAF",
@@ -131,10 +131,29 @@ clean_model = function(model) {
   # Extract the make part (using the same logic as extract_make)
   make_part = extract_make_stats19(model_clean)
   
+  # Check if model_clean is essentially just the make (no model part)
+  # If so, use the original input as the model
+  make_len = nchar(make_part)
+  has_model_part = nchar(model_clean) > make_len
+  
   # Remove the make part from the start of the string
   # We use nchar to know how much to chop off, plus 1 for the space
-  model_only = stringr::str_sub(model_clean, start = nchar(make_part) + 2)
+  model_only = stringr::str_sub(model_clean, start = make_len + 2)
   model_only = stringr::str_trim(model_only)
+  
+  # If no model part was extracted:
+  # - For single words that are known models (CBR, RS, SQ, GS), keep as model
+  # - For other single words (likely makes like FORD), return NA
+  # - For multi-word strings that might be just models (like "CLA CLASS"), use original
+  is_single_word = !stringr::str_detect(model_clean, " ")
+  known_models_single = c("CBR", "RS", "SQ", "GS", "BZ4X", "BZ2X", "BZ1X")
+  is_known_model = model_clean %in% known_models_single
+  
+  model_only = dplyr::if_else(
+    !has_model_part | model_only == "",
+    dplyr::if_else(is_single_word & !is_known_model, NA_character_, model_clean),
+    model_only
+  )
   
   # Strip "TRUCKS" if present (often part of DAF TRUCKS but make is DAF)
   model_only = stringr::str_remove(model_only, "^TRUCKS\\s*")
@@ -166,13 +185,20 @@ clean_model = function(model) {
     stringr::str_to_title(model_only)
   )
   
-  # Handle Mercedes "Class" models - keep "Class" as "Class" not "Class"
-  # But model names like CLA, GLA should have "Class" suffix properly capitalized
-  is_merc_class = stringr::str_detect(model_only, "^(Cla|Gla|Clk|Cls|Cle|Eqa|Eqb|Eqc|Eqe|Sl[ck]|Amg)\\s*Class$")
+  # Handle Mercedes "Class" models - check BEFORE title-casing and override
+  # Extract prefix (CLA, GLA, etc.) from original and combine with " Class"
+  merc_prefix = stringr::str_extract(model_clean, "^(CLA|GLA|CLK|CLS|CLE|EQA|EQB|EQC|EQE|SLC|SLK|AMG)\\s+CLASS$")
+  is_merc_class = !is.na(merc_prefix)
+  is_generic_class = stringr::str_detect(model_clean, "^CLASS$")
+  
   model_only = dplyr::if_else(
     is_merc_class,
-    stringr::str_to_lower(model_only),
-    model_only
+    paste0(stringr::str_to_title(stringr::str_remove(merc_prefix, "\\s+CLASS$")), " Class"),
+    dplyr::if_else(
+      is_generic_class,
+      "Class",
+      model_only
+    )
   )
   
   # Handle Toyota LandCruiser - keep "Cruiser" capitalized
