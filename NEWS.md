@@ -1,5 +1,11 @@
 # stats19 (development version)
 
+* Improved vehicle make/model cleaning (#296):
+  - Model abbreviations now preserved (CBR, RS, SQ, GS, BZ4X)
+  - Mercedes-Benz Class models properly capitalised (CLA Class, GLA Class)
+  - Toyota LandCruiser capitalisation fixed
+  - Generic now allowed as a valid make (was previously NA)
+  - Opel standardised to Vauxhall
 * Fixed issue where `year = 1979` now correctly returns data for 1979 only, rather than all years from 1979 onwards (#282)
 * Added function `match_tag` to match government TAG cost estimates to collisions (#287, #288, #289, #290)
 * `schema_new.Rmd` updated the lookup tables for the package based on the DfT variables xlsx file. This file has been changed to `schema_new.R` which should make updates easier to perform (#291)
